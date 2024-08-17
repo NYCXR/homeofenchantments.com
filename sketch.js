@@ -1,186 +1,100 @@
-let circles = [];
-let expanding = false;
-let expandRate = 8;
-let showText = false;
-let timer;
-let fadeInStart;
-let fadeInDuration = 2000; // Duration for text fade-in
-let alphaValue = 0; // Starting alpha value for text
-let showClickText = false;
-let clickTextTimeout;
-let septahedronRadius = 0;
-let septahedronDelay = 2000; // Delay before septahedron starts growing (in milliseconds)
-let septahedronStartTime;
+let img;
+let video;
+let videoReady = false;
+let seedCircles = [];
+let animateSeed = false;
+let animationProgress = 0;
+let fadeInProgress = 0;
+
+// Load the image and video.
+function preload() {
+  img = loadImage('assets/tome.png');
+  video = createVideo(['assets/water.mp4'], videoLoaded);
+  video.hide(); // Hide the video element, we only want to draw it on the canvas.
+}
+
+function videoLoaded() {
+  videoReady = true;
+  video.loop(); // Loop the video once it's ready
+  video.volume(0);
+}
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
-  background(0);
-  textSize(32);
-  textFont('sans-serif');
-  fill(255);
-
-  // Create 7 circles in the center
-  let centerX = width / 2;
-  let centerY = height / 2;
-
-  for (let i = 0; i < 7; i++) {
-    circles.push({
-      x: centerX,
-      y: centerY,
-      radius: 50,
-      angle: TWO_PI / 7 * i,
-      targetX: centerX + 150 * cos(TWO_PI / 7 * i),
-      targetY: centerY + 150 * sin(TWO_PI / 7 * i),
-      currentX: centerX,
-      currentY: centerY,
-      pulseFactor: 0,
-      pulseDirection: random([3, 2])
-    });
-  }
-
-  // Set timeout for showing the "Click" text
-  clickTextTimeout = setTimeout(() => {
-    showClickText = true;
-  }, 5000);
+  noStroke();
+  setTimeout(() => {
+    animateSeed = true;
+  }, 4000); // Start animation after 4 seconds
 }
 
 function draw() {
   background(0);
 
-  stroke(255);
-  strokeWeight(5);
-  noFill();
+  // Draw the background image, centered.
+  let imgSize = min(width / 2, height / 2);
+  let imgX = (width - imgSize) / 2;
+  let imgY = (height - imgSize) / 2;
+  image(img, imgX, imgY, imgSize, imgSize);
 
-  for (let i = 0; i < circles.length; i++) {
-    let circle = circles[i];
-    let currentRadius = circle.radius + circle.pulseFactor;
-    ellipse(circle.currentX, circle.currentY, currentRadius * 2);
+  if (videoReady) {
+    // Adjust these parameters to fit the inner circle
+    let ellipseSize = imgSize * 0.35;  // Slightly smaller size
+    let videoX = imgX + imgSize * 0.53 - ellipseSize / 2;  // Shift right
+    let videoY = imgY + imgSize * 0.47 - ellipseSize / 2;  // Shift up
+    let thickness = 15; // Adjust the thickness if needed
 
-    if (expanding) {
-      circle.radius += expandRate * 0.1;
-      circle.currentX = lerp(circle.currentX, circle.targetX, 0.05);
-      circle.currentY = lerp(circle.currentY, circle.targetY, 0.05);
-    } else {
-      circle.pulseFactor += circle.pulseDirection * 0.02; // Slower pulsing effect
-      if (circle.pulseFactor > 2 || circle.pulseFactor < -2) { // Adjusted limits for subtler effect
-        circle.pulseDirection *= -1;
+    // Create a series of arcs to simulate a stroked ellipse
+    for (let i = 0; i < thickness; i++) {
+      let maskedVideo = video.get();
+      let videoMask = createGraphics(ellipseSize, ellipseSize);
+      videoMask.noFill();
+      videoMask.stroke(255);
+      videoMask.strokeWeight(2);
+      videoMask.ellipse(ellipseSize / 2, ellipseSize / 2, ellipseSize - i * 2, ellipseSize - i * 2);
+      maskedVideo.mask(videoMask);
+
+      image(maskedVideo, videoX, videoY, ellipseSize, ellipseSize);
+
+      // Dispose of the graphics buffer after use to prevent memory buildup
+      videoMask.remove();
+    }
+
+    // Draw the Seed of Life circles centered within the video-textured ellipse.
+    if (animateSeed) {
+      fadeInProgress += 0.05; // Adjust speed of fade-in
+      if (fadeInProgress > 1) fadeInProgress = 1;
+
+      let seedRadius = (ellipseSize / 4.5) * fadeInProgress;
+      let centerX = videoX + ellipseSize / 2;
+      let centerY = videoY + ellipseSize / 2;
+
+      // Draw glow effect
+      let glowGraphics = createGraphics(width, height);
+      glowGraphics.clear();
+      glowGraphics.stroke(255, 255 * fadeInProgress);
+      glowGraphics.strokeWeight(15); // Larger stroke weight for the glow
+      glowGraphics.noFill();
+      for (let i = 0; i < 7; i++) {
+        let angle = TWO_PI / 6 * i;
+        let x = centerX + cos(angle) * seedRadius;
+        let y = centerY + sin(angle) * seedRadius;
+        glowGraphics.ellipse(x, y, seedRadius * 2);
+      }
+      glowGraphics.filter(BLUR, 10); // Apply blur for the glow effect
+      image(glowGraphics, 0, 0); // Draw the glow graphics
+
+      // Draw the solid circles on top
+      stroke(255, 255 * fadeInProgress);
+      strokeWeight(4);
+      noFill();
+      for (let i = 0; i < 7; i++) {
+        let angle = TWO_PI / 6 * i;
+        let x = centerX + cos(angle) * seedRadius;
+        let y = centerY + sin(angle) * seedRadius;
+        ellipse(x, y, seedRadius * 2);
       }
     }
   }
-
-  if (expanding && millis() - septahedronStartTime >= septahedronDelay) {
-    drawSeptahedron();
-    septahedronRadius += 0.5; // Slower expansion
-  }
-
-  if (showText) {
-    let elapsedTime = millis() - fadeInStart;
-    if (elapsedTime < fadeInDuration) {
-      alphaValue = map(elapsedTime, 0, fadeInDuration, 0, 255);
-    } else {
-      alphaValue = 255;
-    }
-
-    push();
-    noStroke(); // Remove stroke from text
-    textAlign(CENTER, CENTER);
-    fill(255, 255, 255, alphaValue); // Fade-in effect with alpha value
-    
-    // Draw the header
-    fill(0,0,0, alphaValue);
-    textFont('Dancing Script');
-    textSize(52);
-    text('Home of Enchantments', width / 2, height / 2 - 100);
-    textFont('sans-serif');
-    textSize(26);
-    text('A multiplatform Experience', width / 2, height / 2 - 50);
-    
-    // Draw the links
-    textFont('sans-serif');
-    textSize(16);
-    text('ABOUT', width / 2 - 100, height / 2);
-    text('TICKETS', width / 2 + 100, height / 2);
-    pop();
-  }
-
-  if (showClickText && !expanding) {
-    push();
-    noStroke();
-    textAlign(CENTER, CENTER);
-    fill(0); // Black text for "CLICK TO AWAKEN"
-    textSize(16);
-    text('CLICK TO AWAKEN', width / 2, height / 2 + 100);
-    pop();
-  }
-}
-
-function drawSeptahedron() {
-  push();
-  translate(width / 2, height / 2);
-  fill(255);
-  noStroke();
-  beginShape();
-  for (let i = 0; i < 7; i++) {
-    let angle = TWO_PI / 7 * i;
-    let x = septahedronRadius * cos(angle);
-    let y = septahedronRadius * sin(angle);
-    vertex(x, y);
-  }
-  endShape(CLOSE);
-  pop();
-}
-
-function handleUserInteraction() {
-  if (showClickText) {
-    showClickText = false; // Hide "Click" text immediately
-  }
-  expanding = true;
-  septahedronStartTime = millis(); // Set the start time for the septahedron
-  timer = millis(); // Start the timer
-  setTimeout(() => {
-    showText = true;
-    fadeInStart = millis(); // Start the fade-in timer
-  }, 7000);
-  clearTimeout(clickTextTimeout); // Clear the timeout if interaction happens before 5 seconds
-}
-
-function mousePressed() {
-  console.log('Mouse pressed'); // Debug statement
-  handleUserInteraction();
-}
-
-function touchMoved() {
-  console.log('Touch moved'); // Debug statement
-  handleUserInteraction();
-  return false; // Prevent default behavior to avoid conflicts with mousePressed
-}
-
-function mouseClicked() {
-  if (showText) {
-    let dAbout = dist(mouseX, mouseY, width / 2 - 100, height / 2);
-    let dTickets = dist(mouseX, mouseY, width / 2 + 100, height / 2);
-
-    if (dAbout < 50) {
-      window.open('https://newyorkcityxr.com/loveliness/about', '_blank');
-    } else if (dTickets < 50) {
-      window.open('https://newyorkcityxr.com/loveliness/tickets', '_blank');
-    }
-  }
-}
-
-function touchEnded() {
-  console.log('Touch ended'); // Debug statement
-  if (showText) {
-    let dAbout = dist(touches[0].x, touches[0].y, width / 2 - 100, height / 2);
-    let dTickets = dist(touches[0].x, touches[0].y, width / 2 + 100, height / 2);
-
-    if (dAbout < 50) {
-      window.open('https://newyorkcityxr.com/loveliness/about', '_blank');
-    } else if (dTickets < 50) {
-      window.open('https://newyorkcityxr.com/loveliness/tickets', '_blank');
-    }
-  }
-  return false; // Prevent default behavior to avoid conflicts with mouseClicked
 }
 
 function windowResized() {
