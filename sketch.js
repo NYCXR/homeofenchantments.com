@@ -5,6 +5,8 @@ let seedCircles = [];
 let animateSeed = false;
 let animationProgress = 0;
 let fadeInProgress = 0;
+let glowGraphics;
+let startButton;
 
 // Load the image and video.
 function preload() {
@@ -14,14 +16,34 @@ function preload() {
 }
 
 function videoLoaded() {
-  videoReady = true;
-  video.loop(); // Loop the video once it's ready
-  video.volume(0);
+  video.volume(0); // Mute video to allow autoplay
 }
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
   noStroke();
+
+  // Create the glow graphics buffer
+  glowGraphics = createGraphics(windowWidth, windowHeight);
+  glowGraphics.clear();
+
+  // Create a start button to handle user interaction
+  startButton = createButton('Click to begin');
+  startButton.position(windowWidth / 2 - 50, windowHeight / 2);
+  startButton.style('width', '100px');
+  startButton.style('height', '50px');
+  startButton.style('background-color', 'black');
+  startButton.style('color', 'white');
+  startButton.style('border', '2px solid white');
+  startButton.style('font-size', '16px');
+  startButton.mousePressed(startAnimation);
+}
+
+function startAnimation() {
+  startButton.hide();
+  video.loop(); // Loop the video once it's ready
+  videoReady = true;
+
   setTimeout(() => {
     animateSeed = true;
   }, 4000); // Start animation after 4 seconds
@@ -30,13 +52,13 @@ function setup() {
 function draw() {
   background(0);
 
-  // Draw the background image, centered.
-  let imgSize = min(width / 2, height / 2);
-  let imgX = (width - imgSize) / 2;
-  let imgY = (height - imgSize) / 2;
-  image(img, imgX, imgY, imgSize, imgSize);
-
   if (videoReady) {
+    // Draw the background image, centered.
+    let imgSize = min(width / 2, height / 2);
+    let imgX = (width - imgSize) / 2;
+    let imgY = (height - imgSize) / 2;
+    image(img, imgX, imgY, imgSize, imgSize);
+
     // Adjust these parameters to fit the inner circle
     let ellipseSize = imgSize * 0.35;  // Slightly smaller size
     let videoX = imgX + imgSize * 0.53 - ellipseSize / 2;  // Shift right
@@ -61,16 +83,17 @@ function draw() {
 
     // Draw the Seed of Life circles centered within the video-textured ellipse.
     if (animateSeed) {
-      fadeInProgress += 0.05; // Adjust speed of fade-in
+      fadeInProgress += 0.01; // Adjust speed of fade-in
       if (fadeInProgress > 1) fadeInProgress = 1;
 
-      let seedRadius = (ellipseSize / 4.5) * fadeInProgress;
+      let seedRadius = (ellipseSize / 5) * fadeInProgress;
       let centerX = videoX + ellipseSize / 2;
       let centerY = videoY + ellipseSize / 2;
 
-      // Draw glow effect
-      let glowGraphics = createGraphics(width, height);
+      // Clear the glow graphics buffer
       glowGraphics.clear();
+
+      // Draw glow effect
       glowGraphics.stroke(255, 255 * fadeInProgress);
       glowGraphics.strokeWeight(15); // Larger stroke weight for the glow
       glowGraphics.noFill();
@@ -80,7 +103,11 @@ function draw() {
         let y = centerY + sin(angle) * seedRadius;
         glowGraphics.ellipse(x, y, seedRadius * 2);
       }
-      glowGraphics.filter(BLUR, 10); // Apply blur for the glow effect
+      
+      if (frameCount % 2 == 0) {
+        glowGraphics.filter(BLUR, 10); // Apply blur less frequently
+      }
+      
       image(glowGraphics, 0, 0); // Draw the glow graphics
 
       // Draw the solid circles on top
@@ -99,4 +126,5 @@ function draw() {
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
+  startButton.position(windowWidth / 2 - 50, windowHeight / 2); // Reposition the start button if the window is resized
 }
