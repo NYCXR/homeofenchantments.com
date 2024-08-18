@@ -19,6 +19,7 @@ function preload() {
 
 function videoLoaded() {
   video.volume(0); // Mute video to allow autoplay
+  video.elt.controls = false; // Disable controls
 }
 
 function setup() {
@@ -86,10 +87,10 @@ function createGlowEffect() {
     let angle = TWO_PI / 6 * i;
     let x = centerX + cos(angle) * seedRadius;
     let y = centerY + sin(angle) * seedRadius;
-    staticGlowBuffer.ellipse(x, y, seedRadius);
+    staticGlowBuffer.ellipse(x, y, seedRadius * 2);
   }
   
-  staticGlowBuffer.filter(BLUR, 10); // Apply blur for the glow effect
+  staticGlowBuffer.filter(BLUR, 5); // Apply a smaller blur for a reduced glow radius
 }
 
 function draw() {
